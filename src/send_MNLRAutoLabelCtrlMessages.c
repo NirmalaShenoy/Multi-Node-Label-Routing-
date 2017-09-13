@@ -8,10 +8,6 @@
 
 #include "sendAndFwd.h"
 
-extern FILE *fptr;
-extern int enableLogScreen;
-extern int enableLogFiles;
-
 /**
  * mainSend(char[],char[])
  *
@@ -22,7 +18,7 @@ extern int enableLogFiles;
  *
  * @return status (int) - method return value
  */
-int ctrlSend(char etherPort[], char inPayload[]) {
+int ctrlLabelSend(int messageType,char etherPort[], char inPayload[]) {
 
 	int payLoad_Size = -1;
 	int frame_Size = -1;
@@ -121,7 +117,7 @@ int ctrlSend(char etherPort[], char inPayload[]) {
 	memcpy(frame, header, 14);
 
 	// Copying message type to frame
-	uint8_t msgCtrl = MESSAGE_TYPE_CTRL;
+	uint8_t msgCtrl = messageType;
 	memcpy(frame + 14, &msgCtrl, 1);
 
 	// Copying PayLoad (No. of tier addr + x times (tier addr length + tier addr) )
@@ -165,11 +161,8 @@ int ctrlSend(char etherPort[], char inPayload[]) {
 //	printf("TEST: Before sendto() - send_MPLRCtrl.c \n");
 	// Send packet
 	if (sendto(sockfd, frame, tx_len + 1 + payLoad_Size, 0,
-			(struct sockaddr*) &socket_address, sizeof(struct sockaddr_ll)) < 0) //if sendto returns value less 0, then message sending is failed.
-		if(enableLogScreen)
-			printf("ERROR: Send failed\n");
-		if(enableLogFiles)
-			fprintf(fptr,"ERROR: Send failed\n");
+			(struct sockaddr*) &socket_address, sizeof(struct sockaddr_ll)) < 0)
+		printf("\n ERROR: Send failed\n");
 
 	close(sockfd);
 	return 0;
