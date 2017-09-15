@@ -192,7 +192,7 @@ int dataSend(char etherPort[20], unsigned char ipPacket[], char destTier[20], ch
 	// Send packet
 	if (sendto(sockfd, frame, tx_len + 3 + lenFDest + lenFSrc + payLoad_Size, 0,
 			(struct sockaddr*) &socket_address, sizeof(struct sockaddr_ll)) < 0)
-		//printf("ERROR: Send failed\n");
+		printf("ERROR: Send failed\n");
 
 	close(sockfd);
 	return 0;
