@@ -156,6 +156,14 @@ extern int myTotalTierAddress;
  * @return status (int) - method return value
  */
 
+void clean_stdin(void)
+{
+    int c;
+    do {
+        c = getchar();
+    } while (c != '\n' && c != EOF);
+}
+
 int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
 
 	if(enableLogScreen)
@@ -258,6 +266,8 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
     // Repeats the steps from now on
 	while (1) {
         //printMyLabels();
+        //clean_stdin();
+        //printf("\n ***********inside while*********\n");
 		int flag = 0;
 		int flagIP = 0;
 		time1 = time(0);
@@ -295,8 +305,8 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
         checkEntriesToAdvertise();
  
  		//Send hello packets after every 2 seconds
-		if (timeDiff >= 2) { // Initially set to 2, now set to 20 since neighbor table is being printed ever 2 sec. 
-
+		if (timeDiff >= 1) { // Initially set to 2, 
+             // NS changed time from 2 to 1 on 29th Sept
 			// test to print tier IP entries
 			//print_entries_LL();
 
@@ -993,7 +1003,7 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
 
 				if (checkMSGType == 5 && strcmp(recvOnEtherPort, "eth0") != 0) {
 
-					printf("\n TEST: MPLR Message V received \n");
+					printf("\n TEST: MNLR Message V received \n");
 					MPLRMsgVReceivedCount++;
 					MPLROtherReceivedCount--;
 
@@ -1167,7 +1177,7 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
                             printf("\n %s : GETTING THE NEXT LABEL \n", __FUNCTION__);
 
                         }
-                        printf("\n MESSAGE BEING SEND = %s",labelAssignmentPayLoad);
+                        printf("\n MESSAGE BEING SENT = %s",labelAssignmentPayLoad);
                         printf("\n MESSAGE LENGTH = %d \n",(int)strlen(labelAssignmentPayLoad));
                         int i;
                         for(i= 0 ; i < 200; i++){
@@ -1288,6 +1298,9 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
             }
 
         }
+        
+        if(enableLogFiles)
+   			fflush(fptr);
     }
 	return 0;
 }

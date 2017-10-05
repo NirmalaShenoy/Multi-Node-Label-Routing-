@@ -687,13 +687,13 @@ void printNeighbourTable() {
  *
  * return the longest matching adress in the table with the destination address
  *
- *if type == 1,check if any of my neighbors is substring of destination uid
- *else check if destination uid is substring of my neighbors
- * @return void
+ *type = 1: case 3: check substring only if len_neighbor label < len_destination label
+ *type = 2: case 4: check substring only if len_neighbor label <= len_my label and len_neighor label > len_dest label
+ *type = 3: case 5: check substring only if len_neighbor label >= len_my label and len_neighor label < len_dest label
  */
 
  //modified by Supriya on August 28,2017
- int examineNeighbourTable(char* desTierAdd, char* longstMatchingNgbr, int type) 
+ int examineNeighbourTable(char* desTierAdd, char* longstMatchingNgbr,char* myLabel, int type) 
  {
  	int retVal = 1; //ERROR / FAILURE
 	struct nodeHL *fNode = headHL;
@@ -741,35 +741,64 @@ void printNeighbourTable() {
 			fNode = fNode->next;
 		}
 	}
-	else{
-		while (fNode != NULL) {
-			temp  = fNode->tier;	
-			if(enableLogScreen){
-				//printf("\n%s temp->%s desTierAdd-->%s",__FUNCTION__,temp,desTierAdd);
-				printf("\n%s: Check if destination label(uid): %s is a substring of my neighbor: %s",__FUNCTION__,desTierAdd,temp);	
+	else {
+		if (type == 2){
+			while (fNode != NULL) {
+				temp  = fNode->tier;	
+				if(enableLogScreen){
+					//printf("\n%s temp->%s desTierAdd-->%s",__FUNCTION__,temp,desTierAdd);
+					printf("\n%s: Check if destination label(uid): %s is a substring of my neighbor: %s",__FUNCTION__,desTierAdd,temp);	
+				}
+				if(enableLogFiles){
+					//fprintf(fptr,"\n%s temp->%s desTierAdd-->%s",__FUNCTION__,temp,desTierAdd);
+					fprintf(fptr,"\n%s: Check if destination label(uid): %s is a substring of my neighbor: %s",__FUNCTION__,desTierAdd,temp);	
+				}
+
+				if(strlen(temp) <= strlen(myLabel)){
+					if(strlen(temp) > strlen(desTierAdd)){
+						if(checkIfSubstring(desTierAdd,temp)){
+							strcpy(longstMatchingNgbr, temp);
+							return 0;
+						}
+					}
+				}
+				// tempLen = findMatchedTeirAddrLength(desTierAdd,temp);
+				// if(enableLogScreen)
+				// 	printf("\n %s Matched Length = %d",__FUNCTION__,tempLen);	
+				// if(enableLogFiles)
+				// 	fprintf(fptr,"\n %s Matched Length = %d",__FUNCTION__,tempLen);	
+				// if(tempLen > longestMtchLength){
+				// 	longestMtchLength = tempLen;
+				// 	strcpy(longstMatchingNgbr, temp);
+				// 	retVal = 0;
+				// }
+				fNode = fNode->next;
 			}
-			if(enableLogFiles){
-				//fprintf(fptr,"\n%s temp->%s desTierAdd-->%s",__FUNCTION__,temp,desTierAdd);
-				fprintf(fptr,"\n%s: Check if destination label(uid): %s is a substring of my neighbor: %s",__FUNCTION__,desTierAdd,temp);	
+		}
+		else{
+			while (fNode != NULL) {
+				temp  = fNode->tier;	
+				if(enableLogScreen){
+					//printf("\n%s temp->%s desTierAdd-->%s",__FUNCTION__,temp,desTierAdd);
+					printf("\n%s: Check if my neighbor: %s is a substring of destination label(uid): %s",__FUNCTION__,temp,desTierAdd);	
+				}
+				if(enableLogFiles){
+					//fprintf(fptr,"\n%s temp->%s desTierAdd-->%s",__FUNCTION__,temp,desTierAdd);
+					fprintf(fptr,"\n%s: Check if my neighbor: %s is a substring of destination label(uid): %s",__FUNCTION__,temp,desTierAdd);	
+				}
+
+				if(strlen(temp) >= strlen(myLabel)){
+					if(strlen(temp) < strlen(desTierAdd)){
+						if(checkIfSubstring(desTierAdd,temp)){
+							strcpy(longstMatchingNgbr, temp);
+							return 0;
+						}
+					}
+				}	
+				
+				fNode = fNode->next;
 			}
 
-			if(strlen(temp) > strlen(desTierAdd)){
-				if(checkIfSubstring(desTierAdd,temp)){
-					strcpy(longstMatchingNgbr, temp);
-					return 0;
-				}
-			}
-			// tempLen = findMatchedTeirAddrLength(desTierAdd,temp);
-			// if(enableLogScreen)
-			// 	printf("\n %s Matched Length = %d",__FUNCTION__,tempLen);	
-			// if(enableLogFiles)
-			// 	fprintf(fptr,"\n %s Matched Length = %d",__FUNCTION__,tempLen);	
-			// if(tempLen > longestMtchLength){
-			// 	longestMtchLength = tempLen;
-			// 	strcpy(longstMatchingNgbr, temp);
-			// 	retVal = 0;
-			// }
-			fNode = fNode->next;
 		}
 	}
 

@@ -31,7 +31,7 @@ extern void findParntLongst(char* myTierAdd,char* parentTierAdd);
 extern boolean isDestSubstringOfMyLabels(char* destLabel,char* myMatchedLabel);
 extern boolean isMyLabelSubstringOfDest(char* destLabel,char* myMatchedLabel);
 extern void printNeighbourTable();
-extern int  examineNeighbourTable(char* desTierAdd,char* longstMatchingNgbr, int type);
+extern int  examineNeighbourTable(char* desTierAdd,char* longstMatchingNgbr, char* myLabel, int type);
 extern FILE *fptr;
 extern int enableLogScreen;
 extern int enableLogFiles;
@@ -45,7 +45,7 @@ boolean algorithmOptimusG(char currentTier[], char desTier[],
 //Functions created for util later to be moved
 void getUID(char* curUID,char* currentTier);
 void formNextUIDtoTransferInCase3B(char* nextTierAddress,char* currentTierAddress,boolean cond);
-boolean checkIfDestUIDSubStringUID(char* destUID,char* myUID);
+//boolean checkIfDestUIDSubStringUID(char* destUID,char* myUID);
 
 /**
  * packetForwardAlgorithm(char[],char[])
@@ -62,8 +62,10 @@ int packetForwardAlgorithm(char myTierAdd[], char desTierAdd[])
 
 	if(enableLogScreen)
 		printf("\n\n********************Entering packetForwardAlgorithm********************\n");
-	if(enableLogFiles)
+	if(enableLogFiles){
 		fprintf(fptr,"\n\n********************Entering packetForwardAlgorithm********************\n");
+		fflush(fptr);
+	}
 	int returnValue = ERROR;	
 
 	// Case:1 If( Destination Label == My Label )
@@ -145,7 +147,7 @@ int packetForwardAlgorithm(char myTierAdd[], char desTierAdd[])
  				if(enableLogFiles)
 					fprintf(fptr,"\nFinding a common parent by checking if there is a longest substring match in between the destination label [%s] and my neighbor table labels\n",desTierAdd);
 				//success if there is a longest substring match between the neighbor table entries and destination tier address
-				doesNTentryMatchDest = examineNeighbourTable(desTierAdd,longstMatchingNgbr,1); // make change in the funciton, check only for parent nodes.
+				doesNTentryMatchDest = examineNeighbourTable(desTierAdd,longstMatchingNgbr,myTierAdd,1); // make change in the funciton, check only for parent nodes.
                 if(doesNTentryMatchDest == SUCCESS){
 					returnValue = setNextTierToSendPacket(longstMatchingNgbr);
                 }
@@ -235,7 +237,7 @@ int packetForwardAlgorithm(char myTierAdd[], char desTierAdd[])
 								fprintf(fptr,"\nisDestSubstringOfMyLabels = FALSE\nDestination label is NOT a substring of my label.");
 							char longstMatchingNgbr[20];
 							memset(longstMatchingNgbr,'\0',20);
-							int isDestUIDSubNeigbUID = examineNeighbourTable(desTierAdd,longstMatchingNgbr,2);
+							int isDestUIDSubNeigbUID = examineNeighbourTable(desTierAdd,longstMatchingNgbr,myTierAdd,2);
 							if(isDestUIDSubNeigbUID != SUCCESS){
 								if(enableLogScreen)
 									printf("\nDestination label not a substring of any neighbour.");
@@ -306,7 +308,7 @@ int packetForwardAlgorithm(char myTierAdd[], char desTierAdd[])
    								fprintf(fptr,"\nisMyLabelSubstringOfDest = FALSE\nMy label is NOT a substring of Destination label [%s]\nExamining the Neighbor table to check if any of the neighbor is substring of the destination label.", desTierAdd);
 							char longstMatchingNgbr[20];
 							memset(longstMatchingNgbr,'\0',20);
-							int isDestUIDSubNeigbUID = examineNeighbourTable(desTierAdd,longstMatchingNgbr,1);
+							int isDestUIDSubNeigbUID = examineNeighbourTable(desTierAdd,longstMatchingNgbr,myTierAdd,3);
 							if(isDestUIDSubNeigbUID != SUCCESS){
 								char parentTierAdd[20];
 								memset(parentTierAdd,'\0',20);
@@ -338,8 +340,11 @@ int packetForwardAlgorithm(char myTierAdd[], char desTierAdd[])
 	}
 	if(enableLogScreen)
 		printf("\n\n%s:Exit , returnValue = %d \n",__FUNCTION__,returnValue);
-	if(enableLogFiles)
+	if(enableLogFiles){
    		fprintf(fptr,"\n\n%s:Exit , returnValue = %d \n",__FUNCTION__,returnValue);
+   		fflush(fptr);
+   	}
+
 	return returnValue;
 }
 
