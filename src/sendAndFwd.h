@@ -22,6 +22,9 @@
 #include <net/if.h>
 #include <netinet/ether.h>
 
+//
+#define HELLO_TIMER  1
+#define NUMBER_OF_MISSED_HELLO_PACKETS 3
 
 // Destination MAC address (Presently broadcast address)
 #define MY_DEST_MAC0	0xFF

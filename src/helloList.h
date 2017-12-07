@@ -9,6 +9,7 @@
 #ifndef HELLOLIST_H_
 #define HELLOLIST_H_
 
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -259,7 +260,7 @@ int delete() {
 		//printf("TEST: delTimeDiff: %f \n", delTimeDiff);
 
 		// If last updated local time is more than desired time
-		if (delTimeDiff >= 8) {
+		if (delTimeDiff >= (HELLO_TIMER * NUMBER_OF_MISSED_HELLO_PACKETS)) {
 			//printf("TEST: Inside Time diff delete block (>30)\n");
 			flg = true;
 			// if node to be removed is head

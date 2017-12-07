@@ -321,7 +321,7 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
         checkEntriesToAdvertise();
  		int isMyTableUpdated =0;
  		//Send hello packets after every 2 seconds
-		if (timeDiff >= 1) { // Initially set to 2, 
+		if (timeDiff >= HELLO_TIMER) { // Initially set to 2, 
              // NS changed time from 2 to 1 on 29th Sept
 			// test to print tier IP entries
 			//print_entries_LL();
