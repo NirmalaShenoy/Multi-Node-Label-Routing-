@@ -168,8 +168,8 @@ int ctrlSend(char etherPort[], char inPayload[]) {
 			(struct sockaddr*) &socket_address, sizeof(struct sockaddr_ll)) < 0) //if sendto returns value less 0, then message sending is failed.
 		if(enableLogScreen)
 			printf("ERROR: Send failed\n");
-		if(enableLogFiles)
-			fprintf(fptr,"ERROR: Send failed\n");
+		//if(enableLogFiles)
+		//	fprintf(fptr,"ERROR: Send failed\n");
 
 	close(sockfd);
 	return 0;

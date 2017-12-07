@@ -24,6 +24,7 @@ struct addr_tuple {
 	uint8_t cidr;
 	char etherPortName[10];
 	struct addr_tuple *next;
+	bool isLabelActive;
 };
 
 char *allocate_strmem(int);
@@ -37,7 +38,7 @@ int buildPayload(uint8_t *, int, int);
 
 void add_entry_LL(struct addr_tuple*);
 struct addr_tuple *find_entry_LL(struct in_addr *, char *tierAddr);
-bool delete_entry_LL_IP(struct in_addr);
+bool delete_entry_LL_IP(struct in_addr, char *tierAddr);
 void print_entries_LL();
 
 struct addr_tuple* add_matched_entry(struct addr_tuple*, struct addr_tuple*);

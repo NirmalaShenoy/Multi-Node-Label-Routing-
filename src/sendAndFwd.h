@@ -51,6 +51,8 @@
 #define MESSAGE_TYPE_ENDNW_REMOVE	2
 #define MESSAGE_TYPE_ENDNW_UPDATE	3
 
+#define MESSAGE_TYPE_DELETE_MYLABEL   10
+
 // Allocating size to different containers
 #define HEADER_SIZE			14
 

@@ -124,7 +124,7 @@ int setTierInfo(char tierValue[]) { //function to set the tier address of the no
 
 	tierSet=0;
 
-	//printf("Default TierAddress in setTierInfo - updateEnvironment.c %s\n",tierAddress);
+	printf("Default TierAddress is: %s\n",tierAddress);
 
 	return 0;
 }

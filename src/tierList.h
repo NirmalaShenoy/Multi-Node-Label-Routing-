@@ -25,7 +25,7 @@ char *returnAddr = NULL;     // tier address to return
 struct nodeTL {
 	char tier[20];          		// tier value
 	struct nodeTL *next;      // next node
-}*headTL;
+}*headTL, *failedHeadTL;
 
 /**
  * appendTierAddr()
@@ -88,8 +88,8 @@ void addTierAddr(char inTier[20]) {
  * @param inTier (char[]) - tier value
  *
  */
-void insertTierAddr(char inTier[20]) {
-
+boolean insertTierAddr(char inTier[20]) {
+	boolean inserted = false;
     printf("\ninsertTierAddr is called , label=%s labelLength=%d\n",inTier,(int)strlen(inTier));
 	struct nodeTL *temp;
 	temp = headTL;
@@ -97,6 +97,7 @@ void insertTierAddr(char inTier[20]) {
 
 		addTierAddr(inTier); //this fuction adds tier address ti list
 		myTotalTierAddress++;//keeps track of the tier address. incremented once we add tier address to list
+		inserted = true;
 
 	} else { //if there is initioal tier address in headTL, we call append TierAddr, which will append tier address to list
 
@@ -105,8 +106,10 @@ void insertTierAddr(char inTier[20]) {
         if (checkNode == 1) {
             appendTierAddr(inTier);
 			myTotalTierAddress++; //keeps track of the tier address. incremented once we add tier address to list
+			inserted = true;
 	    }
 	}
+	return inserted;
 }
 
 /**
@@ -205,6 +208,10 @@ int getCountOfTierAddr() {
 	return myTotalTierAddress;
 }
 
+void reducemyTotalTierAddressCount(){
+	myTotalTierAddress--;
+}
+
 /**
  * containsMyTierAddr(char[])
  *
@@ -223,6 +230,36 @@ boolean containsMyTierAddr(char testStr[20]) {
 
 		//printf("ERROR: No Tier Address (Ready to roll out)\n");
 		errorCount++;
+		return check;
+	}
+
+	// traverse the list
+	// testing
+	while (fNode != NULL) {
+		//while (fNode->next != NULL) {
+
+		if ((strlen(fNode->tier) == strlen(testStr))
+				&& ((strncmp(fNode->tier, testStr, strlen(testStr)) == 0))) {
+			check = true;
+			break;
+
+		} else {
+			fNode = fNode->next;
+		}
+
+	}
+	//printf("TEST: Before return check %d \n", check);
+	return check;
+}
+
+boolean isInMyFailedLabelList(char testStr[20]) {
+
+	//printf("TEST: Inside containsTierAddress - tierList.h \n");
+	boolean check = false;
+
+	struct nodeTL *fNode = failedHeadTL;
+
+	if (fNode == NULL) {
 		return check;
 	}
 

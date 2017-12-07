@@ -75,11 +75,21 @@ extern void printIPPacketDetails(unsigned char ipPacket[], int nIPSize);
 extern void printMPLRPacketDetails(unsigned char mplrPacket[], int nSize);
 
 extern void printNeighbourTable();
+extern boolean containsMyTierAddr(char testStr[20]);
+extern boolean isInMyFailedLabelList(char testStr[20]);
+extern int count();
 
 void checkEntriesToAdvertise();
 void checkForLinkFailures(struct addr_tuple *, int);
 bool isInterfaceActive(struct in_addr, int);
 void getMyTierAddresses();
+
+int cidrs[100] = { 0 }; //subnet mask eg: 24
+char *portName[10]; //interface no or port no eg : \eth0
+int endNWCount = 0;
+int numActiveEndIPs = 0;
+struct in_addr ips[100];
+
 
 char *interfaceList[10];
 int interfaceListSize;
@@ -145,6 +155,8 @@ void joinChildTierParentUIDInterface(char childLabel[],char myTierAddress[],char
 void printMyLabels();
 
 extern int myTotalTierAddress;
+
+extern struct nodeTL *failedHeadTL;
 /**
  * _get_MACTest(int,char[])
  *
@@ -282,16 +294,20 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
 			checkForLinkFailures(myAddr, numTierAddr);
 			// if we have new failed IPS Advertise.
 			if (failedEndIPs_head != NULL) {
+				//printf("\n failedEndIPs_head is not null\n");
 				setInterfaces(); //interfaceList is being set by this function
 				int loopCounter2 = 0;
 				uint8_t *mplrPayload = allocate_ustrmem (IP_MAXPACKET);
 				int mplrPayloadLen = 0;
 				//buildPayloadRemoveAdvbuildPayloadRemoveAdvtsts 
 				mplrPayloadLen = buildPayloadRemoveAdvts(mplrPayload, failedEndIPs_head); 
+				//printf("\nbuildPayloadRemoveAdvts executed \n");
 				if (mplrPayloadLen) {
 					for (; loopCounter2 < interfaceListSize; loopCounter2++) {
 						// MPLR TYPE 5.
+						//printf("\n before endNetworkSend \n");
 						endNetworkSend(interfaceList[loopCounter2], mplrPayload, mplrPayloadLen);
+						//printf("\nendNetworkSend executed \n");
 					}
 				}
 				free(mplrPayload);
@@ -303,7 +319,7 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
 
         // check if there are entries to be advertised.
         checkEntriesToAdvertise();
- 
+ 		int isMyTableUpdated =0;
  		//Send hello packets after every 2 seconds
 		if (timeDiff >= 1) { // Initially set to 2, 
              // NS changed time from 2 to 1 on 29th Sept
@@ -351,15 +367,45 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
 				MPLRCtrlSendCount++;
 
 			}
-
-			delete(); //free the memory allocated
-
+			isMyTableUpdated = delete(); //free the memory allocated
+			//delete();
 			time0 = time(0); //reset time0
 			freeInterfaces(); //
 			interfaceListSize = 0;
 			MPLRCtrlSendRound++;
 			//printf("TEST: Inside timeDiff block sendCount: %lld\n",
 				//	MPLRCtrlSendCount);
+		}
+
+		if (!endNode && isMyTableUpdated > 0) { // only does when node is an end node.
+			checkForLinkFailures(myAddr, numTierAddr);
+			// if we have new failed IPS Advertise.
+			if (failedEndIPs_head != NULL) {
+				printf("\n failedEndIPs_head is not null\n");
+				setInterfaces(); //interfaceList is being set by this function
+				int loopCounter2 = 0;
+				uint8_t *mplrPayload = allocate_ustrmem (IP_MAXPACKET);
+				int mplrPayloadLen = 0;
+				//buildPayloadRemoveAdvbuildPayloadRemoveAdvtsts 
+				mplrPayloadLen = buildPayloadRemoveAdvts(mplrPayload, failedEndIPs_head); 
+				printf("\nbuildPayloadRemoveAdvts executed \n");
+				if (mplrPayloadLen) {
+					for (; loopCounter2 < interfaceListSize; loopCounter2++) {
+						// MPLR TYPE 5.
+						printf("\n before endNetworkSend \n");
+						endNetworkSend(interfaceList[loopCounter2], mplrPayload, mplrPayloadLen);
+						printf("\nendNetworkSend executed \n");
+					}
+				}
+				free(mplrPayload);
+				//print_entries_LL();
+				freeInterfaces();
+				interfaceListSize = 0;
+			}
+		}
+
+		if(myTierValue>1 && isMyTableUpdated > 0){
+			sendDeleteMyLabelMsg(isMyTableUpdated);
 		}
 
 		socklen_t addr_len = sizeof src_addr;
@@ -1055,12 +1101,13 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
 								// insert info about index from which the packet has been received from.
 								a->if_index = src_addr.sll_ifindex;
 								a->isNew = true;
+								a->isLabelActive = true;
 								memcpy(&a->ip_addr, &ipAddr,
 										sizeof(struct in_addr));
 								a->cidr = cidr;
 								add_entry_LL(a);
 
-								//print_entries_LL();
+								print_entries_LL();
 							}
 						} else if (action == MESSAGE_TYPE_ENDNW_UPDATE) {
 
@@ -1068,8 +1115,9 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
 
 						} else if (action == MESSAGE_TYPE_ENDNW_REMOVE) {
 
-							if (delete_entry_LL_IP(ipAddr)) {
-									hasDeletions++;
+							if (delete_entry_LL_IP(ipAddr,tierAddr)) {
+								print_entries_LL();
+								hasDeletions++;
 							}
 
 						} else {
@@ -1228,11 +1276,38 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
 						}
 
 						// pass it to tier address list
-						insertTierAddr(label);
+						bool flg = insertTierAddr(label);
 
 				/*		tierAddr[0] = malloc(1 + strlen(label));
 						strcpy(tierAddr[0], label);
 						tierAddrCount++;*/
+						if(flg == true && myTierValue == 3){
+							printf("\n adding Label  =%s to my IP-Label table\n", label);
+							for (int index2 = 0; index2 < endNWCount; index2++) {
+
+								strcpy(myAddr[numTierAddr].tier_addr, label);
+								myAddr[numTierAddr].ip_addr = ips[index2];
+								myAddr[numTierAddr].cidr = (uint8_t) cidrs[index2];
+								strcpy(myAddr[numTierAddr].etherPortName, portName[index2]);
+								
+								struct addr_tuple *a = (struct addr_tuple*) calloc(1,
+										sizeof(struct addr_tuple));
+								strncpy(a->tier_addr, myAddr[numTierAddr].tier_addr,
+										strlen(myAddr[numTierAddr].tier_addr));
+
+								// source entry so making it -1, it will help while checking if address belongs to our own or not.
+								a->if_index = -1;
+								a->isNew = true;
+								a->cidr = myAddr[numTierAddr].cidr;
+								strcpy(a->etherPortName, myAddr[numTierAddr].etherPortName);
+								memcpy(&a->ip_addr, &myAddr[numTierAddr].ip_addr, sizeof(struct in_addr));
+								add_entry_LL(a);
+								print_entries_LL();
+								numTierAddr++;
+
+							}
+		
+						}
 
 						printf("\nAdding the label to the list\n");
 
@@ -1287,6 +1362,42 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
 
                     printMyLabels();
 					printf("\n Calling printMyLabels linenumber =%d",__LINE__);
+				}
+
+				if (checkMSGType == MESSAGE_TYPE_DELETE_MYLABEL) {
+					// to delete the label from the neighbor table
+					printf("\n Received MESSAGE_TYPE_DELETE_MYLABEL \n");
+
+					int numberLabels = ethhead[15];
+					printf("\n Number of Labels to be deleted = %d\n", numberLabels);
+					int i = 0;
+					struct labels *acceptedList;
+
+					int myLabelsDeletedCount = 0;
+					// Accepting each label here
+					int messagePointer = 16;
+					for(;i<numberLabels;i++){
+
+						int labelLength = ethhead[messagePointer];
+						printf("\n Label Length = %d\n", labelLength);
+
+						messagePointer++;
+
+						char label[10];
+                        memset(label,'\0', 10);
+						memcpy(label,ethhead+messagePointer,labelLength);
+                        printf("\n Label to  be deleted from my NT =%s Label length= %d\n", label,(int)strlen(label));
+
+						messagePointer = messagePointer + labelLength;
+						//deleteNeighbor() returns true if my label is also deleted else false.
+						if(deleteNeighbor(label))
+							myLabelsDeletedCount++;
+
+					}
+					if(myTierValue>1 && myLabelsDeletedCount > 0){ // myLabelsDeletedCount = number of my labels deleted.
+						sendDeleteMyLabelMsg(myLabelsDeletedCount);
+					}
+
 				}
 
 				if (checkMSGType == MESSAGE_TYPE_LABELS_ACCEPTED) {
@@ -1439,13 +1550,13 @@ an example of an argument (argv) is ./run -T 2.1.2 -N 0 10.10.5.2 24 eth1. 7 com
 //The argument comes as a single string. we need to split and save them to following variables
 	char *tierAddr[20]; //this character array store the tier address 
 	char *ipAddress[16]; //this character array store the ip address of ip node
-	int cidrs[100] = { 0 }; //subnet mask eg: 24
-	char *portName[10]; //interface no or port no eg : \eth0
+	// int cidrs[100] = { 0 }; //subnet mask eg: 24
+	// char *portName[10]; //interface no or port no eg : \eth0
 	
-	//The argument comes as a pointer of pointers. we need to split and save them to following variables
-	int endNWCount = 0;
-	int numActiveEndIPs = 0;
-	struct in_addr ips[100];
+	// //The argument comes as a pointer of pointers. we need to split and save them to following variables
+	// int endNWCount = 0;
+	// int numActiveEndIPs = 0;
+	// struct in_addr ips[100];
 	boolean tierSpecial = false;
 
 	// RVP For Logging purpose
@@ -1597,6 +1708,7 @@ an example of an argument (argv) is ./run -T 2.1.2 -N 0 10.10.5.2 24 eth1. 7 com
 							argv++;
 							iterationNCount++;
 						} while (argc > 0);
+						printf("end Network count is: %d", endNWCount);
 					}
 					else {
 						//  skip till '-' encountered
@@ -1670,7 +1782,8 @@ an example of an argument (argv) is ./run -T 2.1.2 -N 0 10.10.5.2 24 eth1. 7 com
 	// Tier address , IP address 
 	// 
 	if (endNode == 0) { //endNode is updated to 0, if we are at edge node, ie if edgeNode is 0
-		struct addr_tuple myAddr[endNWCount * (myTotalTierAddress)];
+		//struct addr_tuple myAddr[endNWCount * (myTotalTierAddress)];
+		struct addr_tuple myAddr[15];
 		//printf("T0->%d ->%d\n", endNWCount, myTotalTierAddress);
 
 		int index1, index2;
@@ -1682,6 +1795,7 @@ an example of an argument (argv) is ./run -T 2.1.2 -N 0 10.10.5.2 24 eth1. 7 com
 				strcpy(myAddr[numTemp].tier_addr, tierAddr[index1]);
 				//printf("T1->%s ->%s\n", myAddr[numTemp].tier_addr,
 				//		tierAddr[index1]);
+				myAddr[numTemp].isLabelActive = true;
 				myAddr[numTemp].ip_addr = ips[index2];
 				char *temp11;
 				//printf("T2->%s ->%u\n",
@@ -1702,8 +1816,11 @@ an example of an argument (argv) is ./run -T 2.1.2 -N 0 10.10.5.2 24 eth1. 7 com
 
 		// Populate the address table.
 		// Can be written as a function.
+		printf("\nend Network count is: %d", endNWCount);
+		printf("\nmy total tier address is: %d", myTotalTierAddress);
+		printf("\nnumTemp is: %d \n", numTemp);
 		int i = 0;
-		for (i = 0; i < myTotalTierAddress; i++) {
+		for (i = 0; i < numTemp; i++) {// replaced myTotalTierAddress by numTemp (Supriya)
 			struct addr_tuple *a = (struct addr_tuple*) calloc(1,
 					sizeof(struct addr_tuple));
 			strncpy(a->tier_addr, myAddr[i].tier_addr,
@@ -1712,10 +1829,12 @@ an example of an argument (argv) is ./run -T 2.1.2 -N 0 10.10.5.2 24 eth1. 7 com
 			// source entry so making it -1, it will help while checking if address belongs to our own or not.
 			a->if_index = -1;
 			a->isNew = true;
+			a->isLabelActive = true;
 			a->cidr = myAddr[i].cidr;
 			strcpy(a->etherPortName, myAddr[i].etherPortName);
 			memcpy(&a->ip_addr, &myAddr[i].ip_addr, sizeof(struct in_addr));
 			add_entry_LL(a);
+			print_entries_LL();
 		}
 
 		// Activating protocol to be ready
@@ -1922,30 +2041,34 @@ void checkForLinkFailures (struct addr_tuple *myAddr, int numTierAddr) {
 
         // Check if any failed End IPS became active.
         while (current != NULL) {
-                if (isInterfaceActive(current->ip_addr, current->cidr) ) {
+                if (isInterfaceActive(current->ip_addr, current->cidr) &&
+                 (!isInMyFailedLabelList(current->tier_addr))) {
 
                         // Add into the table as they are active.
                         struct addr_tuple *a = (struct addr_tuple*) calloc (1, sizeof(struct addr_tuple));
                         strcpy(a->tier_addr, current->tier_addr);
                         // insert info about index from which the packet has been received from.
                         a->if_index = -1;
+                        //a->isLabelActive = true;
                         a->isNew = true;
                         memcpy(&a->ip_addr, &current->ip_addr, sizeof(struct in_addr));
                         a->cidr = current->cidr;
                         add_entry_LL(a);
-                        //print_entries_LL();
+                        print_entries_LL();
 
                         struct addr_tuple *freeptr;
                         if (current == failedEndIPs_head) {
                                 failedEndIPs_head = current->next;
                                 previous = NULL;
                                 freeptr = current;
-                                current = NULL;
+                                //current = NULL;
+                                current = failedEndIPs_head;
                         } else {
                                 previous->next = current->next;
                                 freeptr = current;
                                 current = current->next;
                         }
+                        //numTierAddr--;
                         free(freeptr);
                         continue;
                 }
@@ -1960,7 +2083,7 @@ void checkForLinkFailures (struct addr_tuple *myAddr, int numTierAddr) {
                 bool isInFailedList = false;
 
                 while (ptr != NULL) {
-                        if ((myAddr[i].ip_addr.s_addr == ptr->ip_addr.s_addr) && (strcmp(myAddr[i].tier_addr, ptr->tier_addr)==0) ) {
+                        if ((myAddr[i].ip_addr.s_addr == ptr->ip_addr.s_addr) && (strcmp(myAddr[i].tier_addr, ptr->tier_addr)==0)) {
                                 isInFailedList = true;
                                 break;
                         }
@@ -1968,12 +2091,14 @@ void checkForLinkFailures (struct addr_tuple *myAddr, int numTierAddr) {
                 }
 
                 // if interface is not active, add to failed IP list.
-                if ((!isInFailedList) && (!isInterfaceActive(myAddr[i].ip_addr, myAddr[i].cidr))) {
-			struct addr_tuple *temp = (struct addr_tuple*) calloc (1, sizeof(struct addr_tuple));
+                if ((!isInFailedList) && 
+                	((!isInterfaceActive(myAddr[i].ip_addr, myAddr[i].cidr)) || isInMyFailedLabelList(myAddr[i].tier_addr))) {
+						struct addr_tuple *temp = (struct addr_tuple*) calloc (1, sizeof(struct addr_tuple));
                         memcpy(temp, &myAddr[i], sizeof(struct addr_tuple));
                         temp->isNew = true;
                         temp->next = NULL;
-                        delete_entry_LL_IP(myAddr[i].ip_addr);
+                        delete_entry_LL_IP(myAddr[i].ip_addr,temp->tier_addr);
+                        print_entries_LL();
                         if (failedEndIPs_head == NULL) {
                                 failedEndIPs_head = temp;
                                 //printf("Will be removing this %s\n", inet_ntoa(failedEndIPs_head->ip_addr));
@@ -1985,6 +2110,7 @@ void checkForLinkFailures (struct addr_tuple *myAddr, int numTierAddr) {
         }
 
 }
+
 /*
 This funtion is used to find all interfaces in a node and check whether interfaces are active
 */
@@ -2017,8 +2143,8 @@ bool isInterfaceActive(struct in_addr ip, int cidr) {
                         struct sockaddr_in *subnmask = ((struct sockaddr_in*) ifa->ifa_netmask);
 
                         if (ip.s_addr == (ipaddr->sin_addr.s_addr & subnmask->sin_addr.s_addr)) {
-				freeifaddrs(ifaddr);
-                                return true;
+							freeifaddrs(ifaddr);
+                            return true;
                         }
 
                 }
@@ -2168,8 +2294,8 @@ void getMyTierAddresses(char* tierAddr[])
                             // pass it to tier address list
                             insertTierAddr(label);
 
-                            tierAddr[0] = malloc(1 + strlen(label));
-                            strcpy(tierAddr[0], label);
+                            tierAddr[i] = malloc(1 + strlen(label));
+                            strcpy(tierAddr[i], label);
                            // tierAddrCount++;
 
                             printf("\nAdding the label to the list\n");
@@ -2239,6 +2365,59 @@ void getMyTierAddresses(char* tierAddr[])
     shutdown(sock,2);
     printf("\n Exiting %s",__FUNCTION__);
 }
+
+void sendDeleteMyLabelMsg(int deleteLabelCount){
+	setInterfaces();
+	struct nodeTL *temp = failedHeadTL;
+	struct labels* labelList;
+    
+    char labelAssignmentPayLoad[200];
+    int cplength = 0;
+
+    memset(labelAssignmentPayLoad, '\0', 200);
+    printf("\n %s : Setting the number of labels in the payload \n",__FUNCTION__);
+    uint8_t numberOfLabels = (uint8_t) deleteLabelCount; // Need to modify
+    memcpy(labelAssignmentPayLoad + cplength, &numberOfLabels, 1);
+    printf("\n %s : labelAssignmentPayLoad(string) = %s",__FUNCTION__,labelAssignmentPayLoad);
+    cplength++;
+    int i;
+    for(i=0;i<deleteLabelCount,temp!=NULL;i++) {
+        printf("\n current label in the message = %s\n",temp->tier);
+        printf("\n %s : Setting the label length in the payload \n", __FUNCTION__);
+        // Setting the label length being send
+        uint8_t labelLength = (uint8_t) strlen(temp->tier); // Need to modify
+        memcpy(labelAssignmentPayLoad + cplength, &labelLength, 1);
+        cplength++;
+
+        printf("\n %s : Setting the label in the payload \n", __FUNCTION__);
+        // Setting the labels being send
+        // Need to modify
+        memcpy(labelAssignmentPayLoad + cplength, temp->tier, labelLength);
+        cplength = cplength + labelLength;
+        temp = temp->next;
+        printf("\n %s : GETTING THE NEXT LABEL \n", __FUNCTION__);
+
+    }
+    printf("\n MESSAGE BEING SENT = %s",labelAssignmentPayLoad);
+    printf("\n MESSAGE LENGTH = %d \n",(int)strlen(labelAssignmentPayLoad));
+    
+    for(i= 0 ; i < 200; i++){
+        printf("%c",labelAssignmentPayLoad[i]);
+    }
+
+  //  printf("\n MESSAGE BEING SEND = %s",labelAssignmentPayLoad);
+
+    printf("\n Sending MESSAGE_TYPE_DELETE_MYLABEL  to all the interface, "
+                   "interfaceListSize = %d payloadSize=%d \n", interfaceListSize,
+           (int) strlen(labelAssignmentPayLoad));
+    
+    for (i =0;i < interfaceListSize; i++) {
+
+        ctrlLabelSend(MESSAGE_TYPE_DELETE_MYLABEL, interfaceList[i], labelAssignmentPayLoad);
+    }
+
+}
+
 
 /**
  * addLabelsList()
@@ -2369,8 +2548,12 @@ void printMyLabels(){
 
     struct nodeTL *temp = headTL;
     printf("\n My labels are: ");
+    if(enableLogFiles)
+		fprintf(fptr,"\n My labels are: ");
     while(temp){
         printf(" %s ,",temp->tier);
+        if(enableLogFiles)
+			fprintf(fptr," %s ,",temp->tier);
         temp = temp->next;
     }
 }

@@ -111,8 +111,8 @@ int endNetworkSend(char etherPort[], uint8_t *inPayload, int payloadLen) {
 			sizeof(struct sockaddr_ll)) < 0)
 		if(enableLogScreen)
 			printf("ERROR: Send failed\n");
-		if(enableLogFiles)
-			fprintf(fptr,"ERROR: Send failed\n");
+		//if(enableLogFiles)
+		//	fprintf(fptr,"ERROR: Send failed\n");
 
 	free(eh);
 	close(sockfd);

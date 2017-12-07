@@ -110,7 +110,7 @@ struct addr_tuple* add_matched_entry(struct addr_tuple *node,
 }
 
 // delete entries in the table.
-bool delete_entry_LL_IP(struct in_addr ip) {
+bool delete_entry_LL_IP(struct in_addr ip,char *tierAddr) {
         bool hasDeletions = false;
 
         if (tablehead == NULL) {
@@ -119,9 +119,10 @@ bool delete_entry_LL_IP(struct in_addr ip) {
                 struct addr_tuple *current = tablehead;
                 struct addr_tuple *prev = NULL;
                 while (current != NULL) {
-                        if (ip.s_addr == current->ip_addr.s_addr) {
+                        if ((ip.s_addr == current->ip_addr.s_addr) && (strncmp(tierAddr, current->tier_addr, strlen(tierAddr))
+							== 0)) {
                                 hasDeletions = true;
-                                //printf("Removing %s \n", inet_ntoa(current->ip_addr));
+                                printf("\nRemoving the label from ip to label table: %s \n", current->tier_addr);
                                 if (tablehead == current) {
                                         tablehead = tablehead->next;
                                         free(current);
@@ -301,7 +302,9 @@ char* updateEndTierAddr(char destinationInterfaceIPAddr[]) {
 	}
 
 	struct addr_tuple *current = tablehead;
+	printf("\nInside updateEndTierAddr() for getting destLabel, labels found are:\n");
 	while (current != NULL) {
+		printf("%s",current->tier_addr);
 		struct in_addr temp;
 		memcpy(&temp, &ip, sizeof(struct in_addr));
 		temp.s_addr = ntohl(temp.s_addr);

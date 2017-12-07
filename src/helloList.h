@@ -17,10 +17,12 @@
 #include "boolean.h"
 #include "fwdAlgorithmHelper.h"
 #include "tierList.h"
+#include "endNetworkUtils.h"
 
 extern FILE *fptr;
 extern int enableLogScreen;
 extern int enableLogFiles;
+extern struct nodeTL *failedHeadTL;
 
 void update(char inTier[20], char inPort[20]);
 int find(char inTier[20], char inPort[20]);
@@ -30,6 +32,10 @@ boolean setByTierOnly(char inTier[20], boolean setFWDFields);
 boolean setByTierManually(char inTier[20], boolean setFWDFields);
 
 extern void getUID(char* curUID,char* currentTier);
+extern char* getTierInfo();
+extern void printMyLabels();
+extern int setTierInfo(char tierValue[]);
+void reducemyTotalTierAddressCount();
 
 
 struct nodeHL {
@@ -161,7 +167,6 @@ int find(char inTier[20], char inPort[20]) {
 		// Target Node
 		// Length Check
 		// Value check
-
 		if (strlen(fNode->tier) == strlen(inTier)) {
 			if (strncmp(fNode->tier, inTier, strlen(inTier)) == 0) {
 
@@ -245,7 +250,8 @@ int delete() {
 	struct nodeHL *deletedTierAddr = NULL;
 	struct nodeHL *temp, *prev;
 	temp = headHL;
-
+	boolean flg =  false;
+	int val = 0;
 	while (temp != NULL) {
 
 		time_t currentTime = time(0);
@@ -255,26 +261,149 @@ int delete() {
 		// If last updated local time is more than desired time
 		if (delTimeDiff >= 8) {
 			//printf("TEST: Inside Time diff delete block (>30)\n");
-
+			flg = true;
 			// if node to be removed is head
 			if (temp == headHL) {
-				//printf("TEST: Head node removed value was %s\n", temp->tier);
+				printf("TEST: Neighbor table modified. Head node removed, value was %s\n", temp->tier);
+				if(enableLogFiles)
+					fprintf(fptr,"TEST: Neighbor table modified. Head node removed, value was %s\n", temp->tier);
 				headHL = temp->next;
 
 				//free(temp);
 				//return 1;
 			} else {
 				prev->next = temp->next;
-				//printf("TEST: other node removed value was %s\n", temp->tier);
+				printf("TEST:Neighbor table modified, following node was removed:  %s\n", temp->tier);
+				if(enableLogFiles)
+					fprintf(fptr,"TEST:Neighbor table modified, following node was removed: %s\n", temp->tier);
 				//free(temp);
 				//return 1;
 			}
+			int myTierValue = getTierVal(getTierInfo());
+			int neighborTierValue = getTierVal(temp->tier);
+			if(myTierValue > neighborTierValue){
+				if(deleteMyLabel(temp->tier))
+					val++;
+				printMyLabels();
+			}
 		}
-		prev = temp;
+		else{
+			prev = temp;
+		}
 		temp = temp->next;
-
 	}
-	return 1;
+	if(flg == true)
+		printNeighbourTable();
+	return val;
+}
+
+boolean deleteNeighbor(char tierValue[]) {
+	struct nodeHL *temp, *prev;
+	temp = headHL;
+	while (temp != NULL) {
+		printf("\nCheck if NT label %s == label to be deleted %s\n", temp->tier, tierValue);
+		if(strncmp(temp->tier, tierValue, strlen(temp->tier)) == 0){
+			if (temp == headHL) {
+				printf("TEST: Neighbor table modified. Head node removed, value was %s\n", temp->tier);
+				if(enableLogFiles)
+					fprintf(fptr,"TEST: Neighbor table modified. Head node removed, value was %s\n", temp->tier);
+				headHL = temp->next;
+
+				//free(temp);
+				//return 1;
+			} else {
+				prev->next = temp->next;
+				printf("TEST:Neighbor table modified, following node was removed:  %s\n", temp->tier);
+				if(enableLogFiles)
+					fprintf(fptr,"TEST:Neighbor table modified, following node was removed: %s\n", temp->tier);
+				//free(temp);
+				//return 1;
+			}
+			printNeighbourTable();
+			int myTierValue = getTierVal(getTierInfo());
+			int neighborTierValue = getTierVal(temp->tier);
+			if(myTierValue > neighborTierValue){
+				deleteMyLabel(temp->tier);
+				printMyLabels();
+				return true;
+			}
+			return false;
+		}
+		else{
+			prev = temp;
+		}
+		temp = temp->next;
+	}
+		
+	return false;
+}
+
+
+
+boolean deleteMyLabel(char* neighborLabel)
+{
+	struct nodeTL *fNode = headTL;
+	struct nodeTL *prev;
+	char* temp;
+	if (fNode == NULL) {
+		if(enableLogScreen)
+			printf("\nERROR: My label List is empty.\n");
+		if(enableLogFiles)
+			fprintf(fptr,"\nERROR: My label List is empty.\n");
+		return false;
+	}
+	
+	while (fNode != NULL) {
+		temp  = fNode->tier;
+		if(checkIfSubstring(neighborLabel,temp)){
+			struct nodeTL *failedTemp;
+			failedTemp = (struct nodeTL *) malloc(sizeof(struct nodeTL)); 
+			memset(failedTemp->tier,'\0',20); 
+			strcpy(failedTemp->tier, temp);
+
+			if (failedHeadTL == NULL) {   
+				failedHeadTL = failedTemp;
+				failedHeadTL->next = NULL; 
+			} else {
+				failedTemp->next = failedHeadTL; 
+				failedHeadTL = failedTemp; 
+			}
+
+			if(enableLogScreen)
+				printf("\nDeleting my label: %s\n", temp);
+			if(enableLogFiles)
+				fprintf(fptr,"\nDeleting my label: %s\n", temp);
+
+			if(fNode == headTL){
+				headTL = fNode->next;
+			}
+			else{
+				prev->next = fNode->next;
+			}
+			if(strncmp(temp, getTierInfo(), strlen(temp)) == 0){
+				if(enableLogScreen)
+					printf("\nPrimary Label deleted, setting the primary label to %s\n", headTL->tier);
+				if(enableLogFiles)
+					fprintf(fptr,"\nPrimary Label deleted, setting the primary label to %s\n", headTL->tier);
+				setTierInfo(headTL->tier);
+			}
+			reducemyTotalTierAddressCount();
+			// for(int i =0; i<numTierAddr; i++){
+			// 	if(strncmp(temp, myAddr[i].tier_addr, strlen(temp)) == 0)
+			// 		myAddr[i].isLabelActive = false;
+			// }
+			return true;
+		}
+		else{
+			prev = fNode;
+		}
+		fNode = fNode->next;
+	}
+	if(enableLogScreen)
+		printf("\nNo lables deleted, should not be printed\n");
+	if(enableLogFiles)
+		fprintf(fptr,"\nNo lables deleted, should not be printed\n");
+	return false;
 }
 
 /**
@@ -339,12 +468,12 @@ boolean containsTierAddress(char testStr[20]) {
 	if (fNode == NULL) {
 
 		if(enableLogScreen){
-			printf("\nERROR: Neighbor List is empty (Isolated Node)\n");
-			printf("\nTEST: Before return check %d \n", check);
+			//printf("\nERROR: Neighbor List is empty (Isolated Node)\n");
+			//printf("\nTEST: Before return check %d \n", check);
 		}
 		if(enableLogFiles){
-			fprintf(fptr,"\nERROR: Neighbor List is empty (Isolated Node)\n");
-			fprintf(fptr,"\nTEST: Before return check %d \n", check);
+			//fprintf(fptr,"\nERROR: Neighbor List is empty (Isolated Node)\n");
+			//fprintf(fptr,"\nTEST: Before return check %d \n", check);
 		}
 		return check;
 	}
