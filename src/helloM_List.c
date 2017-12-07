@@ -2410,7 +2410,9 @@ void sendDeleteMyLabelMsg(int deleteLabelCount){
     printf("\n Sending MESSAGE_TYPE_DELETE_MYLABEL  to all the interface, "
                    "interfaceListSize = %d payloadSize=%d \n", interfaceListSize,
            (int) strlen(labelAssignmentPayLoad));
-    
+    time_t now = time(0);
+    printf("\nPERF : CONTROL_OVERHEAD %d : TIME : %s , link failure detected\n", (interfaceListSize * (int) strlen(labelAssignmentPayLoad)),ctime(&now));
+
     for (i =0;i < interfaceListSize; i++) {
 
         ctrlLabelSend(MESSAGE_TYPE_DELETE_MYLABEL, interfaceList[i], labelAssignmentPayLoad);

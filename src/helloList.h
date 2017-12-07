@@ -262,6 +262,8 @@ int delete() {
 		// If last updated local time is more than desired time
 		if (delTimeDiff >= (HELLO_TIMER * NUMBER_OF_MISSED_HELLO_PACKETS)) {
 			//printf("TEST: Inside Time diff delete block (>30)\n");
+			time_t now = time(0);
+    		printf("\nPERF : DELETE : TIME : %s\n", ctime(&now));
 			flg = true;
 			// if node to be removed is head
 			if (temp == headHL) {
@@ -301,6 +303,8 @@ int delete() {
 boolean deleteNeighbor(char tierValue[]) {
 	struct nodeHL *temp, *prev;
 	temp = headHL;
+	time_t now = time(0);
+    printf("\nPERF : DELETE : TIME : %s\n", ctime(&now));
 	while (temp != NULL) {
 		printf("\nCheck if NT label %s == label to be deleted %s\n", temp->tier, tierValue);
 		if(strncmp(temp->tier, tierValue, strlen(temp->tier)) == 0){
@@ -320,6 +324,7 @@ boolean deleteNeighbor(char tierValue[]) {
 				//free(temp);
 				//return 1;
 			}
+
 			printNeighbourTable();
 			int myTierValue = getTierVal(getTierInfo());
 			int neighborTierValue = getTierVal(temp->tier);
@@ -685,6 +690,7 @@ void printNeighbourTable() {
 
 	struct nodeHL *fNode = headHL;
 	char* temp;
+	int countNeighbours =0;
 	if (fNode == NULL) {
 		if(enableLogScreen)
 			printf("ERROR: Neighbor List is empty (Isolated Node)\n");
@@ -699,6 +705,7 @@ void printNeighbourTable() {
 	if(enableLogFiles)
 		fprintf(fptr,"\n*************** Neighbor Table *************");
 	while (fNode != NULL) {
+		countNeighbours++;
 		temp  = fNode->tier;		
 		if(enableLogScreen)
 			printf("\n ------- %s --------",temp);
@@ -706,6 +713,8 @@ void printNeighbourTable() {
 			fprintf(fptr,"\n ------- %s --------",temp);
 		fNode = fNode->next;
 	}
+	time_t now = time(0);
+    printf("\nPERF : NTSIZE %d : TIME : %s , size of the neighbor table\n",countNeighbours , ctime(&now));
 	return;
 }
 
