@@ -155,7 +155,7 @@ void joinChildTierParentUIDInterface(char childLabel[],char myTierAddress[],char
 void printMyLabels();
 
 extern int myTotalTierAddress;
-
+extern int myTotalParentLabels;
 extern struct nodeTL *failedHeadTL;
 /**
  * _get_MACTest(int,char[])
@@ -407,6 +407,9 @@ int _get_MACTest(struct addr_tuple *myAddr, int numTierAddr) {
 		if(myTierValue>1 && isMyTableUpdated > 0){
 			sendDeleteMyLabelMsg(isMyTableUpdated);
 		}
+		if(myTierValue>1 && myTotalParentLabels > myTotalTierAddress){
+			sendJoinRequest();
+		}	
 
 		socklen_t addr_len = sizeof src_addr;
 		socklen_t addr_lenIP = sizeof src_addrIP;
@@ -2410,12 +2413,34 @@ void sendDeleteMyLabelMsg(int deleteLabelCount){
     printf("\n Sending MESSAGE_TYPE_DELETE_MYLABEL  to all the interface, "
                    "interfaceListSize = %d payloadSize=%d \n", interfaceListSize,
            (int) strlen(labelAssignmentPayLoad));
-    
+    time_t now = time(0);
+    printf("\nPERF : CONTROL_OVERHEAD %d : TIME : %s , link failure detected\n", (interfaceListSize * (int) strlen(labelAssignmentPayLoad)),ctime(&now));
+
     for (i =0;i < interfaceListSize; i++) {
 
         ctrlLabelSend(MESSAGE_TYPE_DELETE_MYLABEL, interfaceList[i], labelAssignmentPayLoad);
     }
 
+}
+
+void sendJoinRequest(){
+	setInterfaces();
+	int i =0;
+    // Form the NULL join message here
+    char labelAssignmentPayLoad[200];
+    int cplength = 0;
+    // Clearing the payload
+    memset(labelAssignmentPayLoad,'\0', 200);
+
+    // Setting the tierValue
+    uint8_t tierValue = (uint8_t) myTierValue;
+    memcpy(labelAssignmentPayLoad+cplength, &tierValue, 1);
+    printf("\n Sending NULL join request to all its interfaces, "
+                   "interfaceListSize = %d payloadSize=%d",interfaceListSize,(int)strlen(labelAssignmentPayLoad));
+    // Send NULL Join Message (Message Type, Tier Value) to all other nodes
+    for (i =0;i < interfaceListSize; i++) {
+        ctrlLabelSend(MESSAGE_TYPE_JOIN,interfaceList[i], labelAssignmentPayLoad);
+    }
 }
 
 
